@@ -8,6 +8,10 @@ const rotas = Router();
 rotas.get('/usuarios', usuarioController.listar);
 rotas.post('/usuarios', usuarioController.adicionar);
 
+//Criando as rotas para produtos
+rotas.get('/produtos', usuarioController.listar);
+rotas.post('/produtos', usuarioController.adicionar);
+
 //Ainda vamos ter que criar rotas para carrinho e produtos
 //Tarefa de Casa :(
 
