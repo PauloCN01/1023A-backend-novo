@@ -17,7 +17,15 @@ class CarrinhoController {
     adicionarItem(req: Request, res: Response) {
         const { usuarioId, produtoId, quantidade, precosolitario, nome } = req.body;
 
+         // Verificar se o carrinho do usuário já existe
         
+        // Se não existir, criar um novo carrinho
+
+        // Se existir, deve adicionar item no carrinho
+
+        // calcular o total do carrinho
+
+        // Atualizar a data de atualização do carrinho
     }
 
     //removerItem
