@@ -3,15 +3,9 @@ import {Request, Response} from 'express';
 import { db } from '../database/banco.mongo.js';
 
 class ProdutoController {
-    constructor() {
-        id: "";
-        nome: "";
-        preco: 0;
-        urlFoto: "";
-        descricao: "";
-    }
     async adicionar(req:Request, res:Response) {
-        const produto = req.body;
+        const {nome, preco, descricao, urlFoto} = req.body;
+        const produto = {nome, preco, descricao, urlFoto};
         const resultado = await db.collection('produtos')
         .insertOne(produto);
         res.status(201).json({...produto, _id: resultado.insertedId });

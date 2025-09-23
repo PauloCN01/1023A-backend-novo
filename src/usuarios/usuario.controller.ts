@@ -1,6 +1,6 @@
 import { Request, Response } from "express";
 
-import { db } from "../database/banco.mongo";
+import { db } from "../database/banco.mongo.js";
 
 class UsuarioController {
   async adicionar(req:Request, res:Response) {
