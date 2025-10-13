@@ -1,7 +1,6 @@
 import 'dotenv/config';
 import express, {Request,Response} from 'express';
 import { NextFunction, Router } from "express";
-import rotas from './rotas/rotas-naol-autenticadas.js';
 import rotasAutenticadas from './rotas/rotas-autenticadas.js';
 import rotasNaoAutenticadas from './rotas/rotas-naol-autenticadas.js';
 
