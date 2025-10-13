@@ -102,7 +102,7 @@ class CarrinhoController {
 
     //listar
     async listar(req: Request, res: Response) {
-        const { usuarioId } = req.params;
+        const { usuarioId } = req.body;
         const carrinho = await db.collection<Carrinho>('carrinhos').findOne({ usuarioId: ObjectId.createFromHexString(usuarioId) });
         if (!carrinho) {
           res.status(404).json({ message: 'Carrinho não encontrado' });
@@ -113,7 +113,7 @@ class CarrinhoController {
 
     //remover
     async remover(req: Request, res: Response) {
-        const { usuarioId } = req.params;
+        const { usuarioId } = req.body;
         const carrinho = await db.collection<Carrinho>('carrinhos').findOne({ usuarioId: ObjectId.createFromHexString(usuarioId) });
         if (!carrinho) {
           res.status(404).json({ message: 'Carrinho não encontrado' });
@@ -126,3 +126,4 @@ class CarrinhoController {
 }
 
 export default new CarrinhoController();
+
