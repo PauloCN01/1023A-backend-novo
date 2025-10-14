@@ -19,6 +19,5 @@ rotasAutenticadas.get('/produtos', produtoController.listar);
 rotasAutenticadas.post('/adicionarcarrinho', carrinhoController.adicionarItem); 
 
 
-//Tarefa de Casa :(
 
 export default rotasAutenticadas;
