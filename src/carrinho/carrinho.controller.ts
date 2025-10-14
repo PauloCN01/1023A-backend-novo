@@ -1,129 +1,176 @@
-import { Request, Response } from 'express';
-import { db } from '../database/banco.mongo.js';
-import { ObjectId } from 'mongodb';
+import { Request, Response } from "express";
+import { ObjectId } from "bson";
+import { db } from "../database/banco-mongo.js";
 
 interface ItemCarrinho {
-  produtoId: ObjectId;
-  quantidade: number;
- precoUnitario: number;
-  nome: string;
+    produtoId: string;
+    quantidade: number;
+    precoUnitario: number;
+    nome: string;
 }
 
 interface Carrinho {
-  usuarioId: ObjectId;
-  itens: ItemCarrinho[];
-  datatualizacao: Date;
-  total: number;
+    usuarioId: string;
+    itens: ItemCarrinho[];
+    dataAtualizacao: Date;
+    total: number;
+}
+
+interface Produto {
+    _id: ObjectId;
+    nome:string,
+    preco:number,
+    descricao:string,
+    urlfoto:string
 }
 
 class CarrinhoController {
     //adicionarItem
-    async adicionarItem(req: Request, res: Response) {
-        const { usuarioId, produtoId, quantidade, precoUnitario, nome } = req.body;
-        console.log(usuarioId, produtoId, quantidade, precoUnitario, nome);
+    async adicionarItem(req:Request, res:Response) {
+        const { usuarioId, produtoId, quantidade } = req.body as {usuarioId: string, produtoId: string, quantidade: number};
+        console.log(usuarioId, produtoId, quantidade)
+
+        //Buscar o produto no banco de dados
+        const produto = await db.collection<Produto>('produtos')
+                        .findOne({ _id: ObjectId.createFromHexString(produtoId)});
+        if(!produto)
+            return res.status(404).json({mensagem: 'Produto não encontrado'});
+        //Pegar o preço do produto
+        //Pegar o nome do produto
+        const nomeProduto = produto.nome;
+        const precoProduto = produto.preco;
         
-        // Verificar se o carrinho do usuário já existe
-        const carrinho = await db.collection<Carrinho>('carrinhos').findOne({ usuarioId: ObjectId.createFromHexString(usuarioId) });
-        // Se não existir, criar um novo carrinho
-        if (!carrinho) {
-          const novoCarrinho: Carrinho = {
-            usuarioId: ObjectId.createFromHexString(usuarioId),
-            itens: [{ produtoId, quantidade, precoUnitario, nome }],
-            datatualizacao: new Date(),
-            total: quantidade * precoUnitario
-          } 
-          await db.collection<Carrinho>('carrinhos').insertOne(novoCarrinho);
-          res.status(201).json(novoCarrinho);
-        }
-        else {
-          //verificar se o item já existe no carrinho
-          const itemExiste = carrinho.itens.find((item) => item.produtoId = ObjectId.createFromHexString(produtoId));
-          if (!itemExiste) {
-            carrinho.itens.push({ produtoId: ObjectId.createFromHexString(produtoId), quantidade, precoUnitario, nome });
-            // calcular o total do carrinho
-            carrinho.total += quantidade * precoUnitario;
-            // Atualizar a data de atualização do carrinho
-            carrinho.datatualizacao = new Date();
-            await db.collection<Carrinho>('carrinhos').updateOne({ usuarioId: ObjectId.createFromHexString(usuarioId) }, { $set:{itens: carrinho.itens, total: carrinho.total, datatualizacao: carrinho.datatualizacao, } });
-            res.status(200).json(carrinho);
-          }
-        }
+        // Verificar se um carrinho com o usuário já existe
+        const carrinho = await db.collection<Carrinho>("carrinhos").findOne({usuarioId: usuarioId});
 
-    }
+        if(!carrinho){
+            const novoCarrinho: Carrinho = {
+                usuarioId: usuarioId,
+                itens: [{
+                    produtoId: produtoId,
+                    quantidade: quantidade,
+                    precoUnitario: precoProduto,
+                    nome: nomeProduto
+                }],
+                dataAtualizacao: new Date(),
+                total: precoProduto * quantidade
+            }
+            const resposta = await db.collection<Carrinho>("carrinhos").insertOne(novoCarrinho);
+            const carrinhoResposta = {
+                usuarioId: novoCarrinho.usuarioId,
+                itens: novoCarrinho.itens,
+                dataAtualizacao: novoCarrinho.dataAtualizacao,
+                total: novoCarrinho.total,
+                _id: resposta.insertedId
+                
+            }
+            //return res.status(201).json({...novoCarrinho, _id: resposta.insertedId});
 
-    //removerItem
-     async removerItem(req: Request, res: Response) {
-        const { usuarioId, produtoId } = req.body;
-        // Verificar se o carrinho do usuário existe
-        const carrinho = await db.collection<Carrinho>('carrinhos').findOne({ usuarioId: ObjectId.createFromHexString(usuarioId) });
-        if (!carrinho) {
-          res.status(404).json({ message: 'Carrinho não encontrado' });
-          return;
+            //Early Return
+            return res.status(201).json(carrinhoResposta);
+
         }
-        // Verificar se o item existe no carrinho
-        const itemExiste = carrinho.itens.find((item) => item.produtoId = ObjectId.createFromHexString(produtoId));
-        if (!itemExiste) {
-          res.status(404).json({ message: 'Item não encontrado no carrinho' });
-          return;
+        //ELSE
+        // Se existir, deve adicionar o item ao carrinho existente
+        const itemExistente = carrinho.itens.find(item => item.produtoId === produtoId);
+        if(itemExistente){
+            itemExistente.quantidade += quantidade;
+            carrinho.total += precoProduto * quantidade;
+            carrinho.dataAtualizacao = new Date();
         }
         else{
-          // Remover o item do carrinho
-          carrinho.itens = carrinho.itens.filter((item) => item.produtoId !== ObjectId.createFromHexString(produtoId));
-          // Atualizar o total do carrinho
-          carrinho.total -= itemExiste.quantidade * itemExiste.precoUnitario;
-          // Atualizar a data de atualização do carrinho
-          carrinho.datatualizacao = new Date();
-          db.collection<Carrinho>('carrinhos').updateOne({ usuarioId: ObjectId.createFromHexString(usuarioId) }, { $set:{itens: carrinho.itens, total: carrinho.total, datatualizacao: carrinho.datatualizacao, } });
-          res.status(200).json(carrinho);
+            carrinho.itens.push({
+                produtoId: produtoId,
+                quantidade: quantidade,
+                precoUnitario: precoProduto,
+                nome: nomeProduto
+            });
+            carrinho.total += precoProduto * quantidade;
+            carrinho.dataAtualizacao = new Date();
         }
-    }
-
-    //atualizarQuantidade
-    async atualizarQuantidade(req: Request, res: Response) {
-        const { usuarioId, produtoId, quantidade } = req.body;
-        // Verificar se o carrinho do usuário existe
-        const carrinho = await db.collection<Carrinho>('carrinhos').findOne({ usuarioId: ObjectId.createFromHexString(usuarioId) });
-        if (!carrinho) {
-          res.status(404).json({ message: 'Carrinho não encontrado' });
-          return;
-        }
-        // Verificar se o item existe no carrinho
-        const itemExiste = carrinho.itens.find((item) => item.produtoId = ObjectId.createFromHexString(produtoId));
-        if (!itemExiste) {
-          res.status(404).json({ message: 'Item não encontrado no carrinho' });
-          return;
-        }
-        else{
-          // Atualizar a quantidade do item no carrinho
-          const diferencaQuantidade = quantidade - itemExiste.quantidade;
-          itemExiste.quantidade = quantidade;
-        }
-    }
-
-    //listar
-    async listar(req: Request, res: Response) {
-        const { usuarioId } = req.body;
-        const carrinho = await db.collection<Carrinho>('carrinhos').findOne({ usuarioId: ObjectId.createFromHexString(usuarioId) });
-        if (!carrinho) {
-          res.status(404).json({ message: 'Carrinho não encontrado' });
-          return;
-        }
+        // Atualizar o carrinho no banco de dados
+        await db.collection<Carrinho>("carrinhos").updateOne({usuarioId: usuarioId},
+            {$set: {
+                itens: carrinho.itens, 
+                total: carrinho.total, 
+                dataAtualizacao: carrinho.dataAtualizacao
+            }
+            }
+        )
         res.status(200).json(carrinho);
     }
+    async removerItem(req:Request, res:Response) {
+        const { produtoId , usuarioId } = req.body;
+        //Faça o removerItem
+        //Do melhor jeito
 
-    //remover
-    async remover(req: Request, res: Response) {
-        const { usuarioId } = req.body;
-        const carrinho = await db.collection<Carrinho>('carrinhos').findOne({ usuarioId: ObjectId.createFromHexString(usuarioId) });
-        if (!carrinho) {
-          res.status(404).json({ message: 'Carrinho não encontrado' });
-          return;
+        const carrinho = await db.collection<Carrinho>("carrinhos").findOne({usuarioId: usuarioId});
+        if(!carrinho){
+            return res.status(404).json({mensagem: 'Carrinho não encontrado'});
         }
-        db.collection<Carrinho>('carrinhos').deleteOne({ usuarioId: ObjectId.createFromHexString(usuarioId) });
-        res.status(200).json({ message: 'Carrinho removido com sucesso' });
+        const itemExistente = carrinho.itens.find(item => item.produtoId === produtoId);
+        if(!itemExistente){
+            return res.status(404).json({mensagem: 'Item não encontrado'});
+        }
+        const filtrados = carrinho.itens.filter(item => item.produtoId !== produtoId);
+        const total = filtrados.reduce((total, item) => total + item.precoUnitario * item.quantidade, 0);
+        const carrinhoAtualizado = {
+            usuarioId: carrinho.usuarioId,
+            itens: filtrados,
+            dataAtualizacao: new Date(),
+            total: total
+        }
+        await db.collection<Carrinho>("carrinhos").updateOne({usuarioId: usuarioId},
+            {$set: {
+                itens: carrinhoAtualizado.itens, 
+                total: carrinhoAtualizado.total, 
+                dataAtualizacao: carrinhoAtualizado.dataAtualizacao
+            }
+            }
+        )
+        return res.status(200).json(carrinhoAtualizado);
+
+    }
+    async atualizarQuantidade(req:Request, res:Response) {
+        const { produtoId , usuarioId, quantidade  } = req.body;
+        const carrinho = await db.collection<Carrinho>("carrinhos").findOne({usuarioId: usuarioId});
+        if(!carrinho){
+            return res.status(404).json({mensagem: 'Carrinho não encontrado'});
+        }
+        const itemExistente = carrinho.itens.find(item => item.produtoId === produtoId);
+        if(!itemExistente){
+            return res.status(404).json({mensagem: 'Item não encontrado'});
+        }
+        itemExistente.quantidade = quantidade;
+        carrinho.total = carrinho.itens.reduce((total, item) => total + item.precoUnitario * item.quantidade, 0);
+        carrinho.dataAtualizacao = new Date();
+        await db.collection<Carrinho>("carrinhos").updateOne({usuarioId: usuarioId},
+            {$set: {
+                itens: carrinho.itens, 
+                total: carrinho.total, 
+                dataAtualizacao: carrinho.dataAtualizacao
+            }
+            }
+        )
+        return res.status(200).json(carrinho);
+    }
+    async listar(req:Request, res:Response) {
+        const { usuarioId } = req.body;
+        const carrinho = await db.collection<Carrinho>("carrinhos").findOne({usuarioId: usuarioId});
+        if(!carrinho){
+            return res.status(404).json({mensagem: 'Carrinho não encontrado'});
+        }
+        return res.status(200).json(carrinho);
+    }
+    async remover(req:Request, res:Response) {
+        const { usuarioId } = req.body;
+        const carrinho = await db.collection<Carrinho>("carrinhos").findOne({usuarioId: usuarioId});
+        if(!carrinho){
+            return res.status(404).json({mensagem: 'Carrinho não encontrado'});
+        }
+        await db.collection<Carrinho>("carrinhos").deleteOne({usuarioId: usuarioId});
+        return res.status(200).json({mensagem: 'Carrinho removido com sucesso'});
     }
 
 }
-
 export default new CarrinhoController();
-

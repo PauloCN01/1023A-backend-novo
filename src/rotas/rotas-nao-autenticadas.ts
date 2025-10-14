@@ -1,11 +1,8 @@
 import usuarioController from "../usuarios/usuario.controller.js";
-import { NextFunction, Router, Request, Response } from "express";
+import { Router} from "express";
 
 const rotasNaoAutenticadas = Router();
 
-
-
-rotasNaoAutenticadas.post('/usuarios', usuarioController.login);
-
+rotasNaoAutenticadas.post("/login", usuarioController.login);
 
 export default rotasNaoAutenticadas;
